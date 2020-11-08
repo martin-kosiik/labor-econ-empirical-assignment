@@ -7,13 +7,12 @@ library(tidyverse)
 #library(janitor)
 library(estimatr)
 library(texreg)
-library(forcats)
 library(oaxaca)
 library(REAT)
+library(xtable)
 
-
-main_data<- read_dta("RQdata.dta", ) %>% as_factor()
-ur95 <- read_excel("ur95.xls")
+main_data<- read_dta("data/RQdata.dta", ) %>% as_factor()
+ur95 <- read_excel("data/ur95.xls")
 
 main_data <- main_data %>% 
   left_join(ur95, by = "code") %>% 
@@ -43,6 +42,29 @@ main_data %>%
 main_data <- main_data %>% 
   filter(!is.na(c14), !is.na(c13), !is.na(c06), !is.na(ln_y)) #%>%   map_int(~ sum(is.na(.)))
 
+# 3)
+texreg(main_data)
+
+main_data_summary <-
+  main_data %>%
+  dplyr::select(ln_y, exper, exper_sq, schooling_years, prague, has_child, urate) %>% 
+  # Keep numeric variables
+  select_if(is.numeric) %>%
+  # gather variables
+  gather(variable, value) %>%
+  # Summarize by variable
+  group_by(variable) %>%
+  # summarise all columns
+  summarise(n = sum(!is.na(value)),
+            `Mean` = mean(value, na.rm = TRUE),
+            `Std. Dev.` = sd(value, na.rm = TRUE),
+            `Median` = median(value, na.rm = TRUE),
+            `Min.` = min(value, na.rm = TRUE),
+            `Max.` = max(value, na.rm = TRUE)) 
+  
+main_data_summary %>% 
+  xtable(caption = "Descriptive statistics") %>% 
+  print(caption.placement = "top", file = "tables/descriptive_stats.tex")
 
 # 4)
 # a) 
@@ -87,7 +109,7 @@ o_decomp <- oaxaca(ln_y ~ schooling_years + exper + exper_sq| female , data = ma
 plot(o_decomp, decomposition = "twofold", group.weight = -1)
 
 # 10)
-
+# a)
 gini_male <- gini(main_data[main_data$female == 0, ]$c14)
 gini_female <- gini(main_data[main_data$female == 1, ]$c14)
 
@@ -100,4 +122,12 @@ decile_ratio <- function(x){
 dec_ratio_male <- decile_ratio(main_data[main_data$female == 0, ]$c14)
 dec_ratio_female <- decile_ratio(main_data[main_data$female == 1, ]$c14)
 
+
+# b)
+by_households <- main_data %>% 
+  group_by(identa) %>% 
+  summarise(c14 = sum(c14))
+
+gini_hh <- gini(by_households$c14)
+dec_hh <- decile_ratio(by_households$c14)
 
