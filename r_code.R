@@ -8,6 +8,7 @@ library(tidyverse)
 library(estimatr)
 library(texreg)
 library(forcats)
+library(oaxaca)
 
 main_data<- read_dta("RQdata.dta", ) %>% as_factor()
 ur95 <- read_excel("ur95.xls")
@@ -26,7 +27,8 @@ main_data <- main_data %>%
                                                 'Apprenticeship (3 - 4 years)' = '3',
                                                 'Secondary vocational with GCE' = '4',
                                                 'Grammar school with GCE' = '5',
-                                                'Higher education' = '6'))  %>% 
+                                                'Higher education' = '6'),
+         female = (e02a == "Female")*1)  %>% 
   rename(schooling_years = a09)
 
 # Check number of missing values for each column
@@ -34,7 +36,6 @@ main_data %>%
   map_int(~ sum(is.na(.)))
 
 # Variable c14 has 101 missing values, c13 22, and c06 18
-main_data
 
 # drop the missing data 
 main_data <- main_data %>% 
@@ -50,23 +51,40 @@ lm_robust(ln_y ~ schooling_years + exper + exper_sq, full_time_men)
 
 # 6)
 
-lm_robust(ln_y ~ as.factor(a05) + exper + exper_sq, full_time_men)
+edu_level_basic <- lm_robust(ln_y ~ edu_level + exper + exper_sq, full_time_men)
 
 # 7)
 # a)
-one_child <- lm_robust(ln_y ~ has_child + as.factor(a05) + exper + exper_sq, full_time_men)
+one_child <- lm_robust(ln_y ~ has_child + edu_level + exper + exper_sq, full_time_men)
 
 # b)
-one_vs_more <- lm_robust(ln_y ~ I(more_than_one_child - has_child)+ as.factor(a05) + exper + exper_sq, full_time_men)
-texreg(list(one_child, one_vs_more), caption = 'Effects of children', file = 'tables/children_effects.tex') #%>% 
-  cat() %>% 
-  write_file('tables/children_effects.tex')
+one_vs_more <- lm_robust(ln_y ~ I(more_than_one_child - has_child)+ edu_level + exper + exper_sq, full_time_men)
+texreg(list(edu_level_basic, one_child, one_vs_more), caption = 'Effects of children', file = 'tables/children_effects.tex') 
   
 
 # 8)
 # a, b)
-lm_robust(ln_y ~ schooling_years*prague + exper + exper_sq, full_time_men)
+prague_reg <- lm_robust(ln_y ~ schooling_years*prague + exper + exper_sq, full_time_men)
 #c)
-lm_robust(ln_y ~ schooling_years + exper + exper_sq + urate, full_time_men)
+unemp_rate_reg <- lm_robust(ln_y ~ urate + schooling_years + exper + exper_sq, full_time_men)
+texreg(list(edu_level_basic, one_child, one_vs_more), caption = 'Prague and regional unemployment effect',
+       file = 'tables/prague_reg_unemp.tex') 
+
+# 9)
+
+gender_inter <- lm_robust(ln_y ~ schooling_years*female + exper*female + exper_sq*female, main_data)
+
+gender_inter %>% 
+  mutate(coefficients = str_replace(coefficients,":", "*")) %>% names()
+
+gender_inter$term <- str_replace(gender_inter$term,":", "*")
+
+o_decomp <- oaxaca(ln_y ~ schooling_years + exper + exper_sq| female , data = main_data, R = 1000)
+
+
+plot(o_decomp, decomposition = "twofold", group.weight = -1)
+
+# 10)
+
 
 
