@@ -9,6 +9,8 @@ library(estimatr)
 library(texreg)
 library(forcats)
 library(oaxaca)
+library(REAT)
+
 
 main_data<- read_dta("RQdata.dta", ) %>% as_factor()
 ur95 <- read_excel("ur95.xls")
@@ -86,5 +88,16 @@ plot(o_decomp, decomposition = "twofold", group.weight = -1)
 
 # 10)
 
+gini_male <- gini(main_data[main_data$female == 0, ]$c14)
+gini_female <- gini(main_data[main_data$female == 1, ]$c14)
+
+decile_ratio <- function(x){
+  deciles <- quantile(x, na.rm = TRUE, probs = c(0.1, 0.9)) %>% unname()
+  return(deciles[2]/deciles[1])
+  
+}
+
+dec_ratio_male <- decile_ratio(main_data[main_data$female == 0, ]$c14)
+dec_ratio_female <- decile_ratio(main_data[main_data$female == 1, ]$c14)
 
 
