@@ -11,6 +11,7 @@ library(oaxaca)
 library(REAT)
 library(xtable)
 
+
 main_data<- read_dta("data/RQdata.dta", ) %>% as_factor()
 ur95 <- read_excel("data/ur95.xls")
 
@@ -43,7 +44,6 @@ main_data <- main_data %>%
   filter(!is.na(c14), !is.na(c13), !is.na(c06), !is.na(ln_y)) #%>%   map_int(~ sum(is.na(.)))
 
 # 3)
-texreg(main_data)
 
 main_data_summary <-
   main_data %>%
@@ -70,7 +70,32 @@ main_data_summary %>%
 # a) 
 men_only <- main_data %>% filter(e02a == "Male")
 full_time_men <- men_only %>% filter(c13 >= 6, c13 <= 10)
-lm_robust(ln_y ~ schooling_years + exper + exper_sq, full_time_men)
+basic_model <- lm_robust(ln_y ~ schooling_years + exper + exper_sq, full_time_men)
+
+# 5)
+# a)
+# We might want to control for main activity of the bussiness since it might affect the earnings
+
+extended_model <- lm_robust(ln_y ~ schooling_years + exper + exper_sq + c06, full_time_men)
+
+extended_model$term <- str_replace(extended_model$term,"^c06", "")
+
+texreg(list(basic_model, extended_model), caption = 'Basic and extended models', file = 'tables/extended_model.tex',
+       caption.above = TRUE, include.ci = FALSE) 
+
+
+# c)
+u2 <- (full_time_men$ln_y - basic_model$fitted.values)^2
+y <- basic_model$fitted.values
+Ru2<- summary(lm(u2 ~ y + I(y^2)))$r.squared
+LM <- nrow(full_time_men)*Ru2
+p.value <- 1-pchisq(LM, 2)
+p.value
+# We reject null hypothesis of homoskeasticity
+
+
+# f)
+max_earn_exp <- -extended_model$coefficients['exper']/(2 * extended_model$coefficients['exper_sq'])
 
 
 # 6)
@@ -83,7 +108,8 @@ one_child <- lm_robust(ln_y ~ has_child + edu_level + exper + exper_sq, full_tim
 
 # b)
 one_vs_more <- lm_robust(ln_y ~ I(more_than_one_child - has_child)+ edu_level + exper + exper_sq, full_time_men)
-texreg(list(edu_level_basic, one_child, one_vs_more), caption = 'Effects of children', file = 'tables/children_effects.tex') 
+texreg(list(edu_level_basic, one_child, one_vs_more), caption = 'Effects of children', file = 'tables/children_effects.tex',
+       caption.above = TRUE, include.ci = FALSE) 
   
 
 # 8)
@@ -91,15 +117,15 @@ texreg(list(edu_level_basic, one_child, one_vs_more), caption = 'Effects of chil
 prague_reg <- lm_robust(ln_y ~ schooling_years*prague + exper + exper_sq, full_time_men)
 #c)
 unemp_rate_reg <- lm_robust(ln_y ~ urate + schooling_years + exper + exper_sq, full_time_men)
-texreg(list(edu_level_basic, one_child, one_vs_more), caption = 'Prague and regional unemployment effect',
-       file = 'tables/prague_reg_unemp.tex') 
+texreg(list(prague_reg, unemp_rate_reg), caption = 'Prague and regional unemployment effect',
+       file = 'tables/prague_reg_unemp.tex', caption.above = TRUE, include.ci = FALSE) 
+
+
 
 # 9)
 
 gender_inter <- lm_robust(ln_y ~ schooling_years*female + exper*female + exper_sq*female, main_data)
 
-gender_inter %>% 
-  mutate(coefficients = str_replace(coefficients,":", "*")) %>% names()
 
 gender_inter$term <- str_replace(gender_inter$term,":", "*")
 
@@ -126,7 +152,7 @@ dec_ratio_female <- decile_ratio(main_data[main_data$female == 1, ]$c14)
 # b)
 by_households <- main_data %>% 
   group_by(identa) %>% 
-  summarise(c14 = sum(c14))
+  summarise(c14 = mean(c14, na.rm = TRUE))
 
 gini_hh <- gini(by_households$c14)
 dec_hh <- decile_ratio(by_households$c14)
