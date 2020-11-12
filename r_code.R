@@ -20,7 +20,8 @@ main_data <- main_data %>%
   mutate(ln_y = log(c14),
          exper = e02b - a09 - 6,     # age - years of schooling - 6
          exper_sq = exper^2,
-         has_child = (e03 > 0)*1,
+         any_children = (e03 > 0)*1,
+         one_child = (e03 == 1)*1,
          more_than_one_child = (e03 > 1)*1,
          prague = (code == 3100) * 1,
          edu_level = fct_recode(as.factor(a05), 'No school education' = '7',
@@ -47,7 +48,8 @@ main_data <- main_data %>%
 
 main_data_summary <-
   main_data %>%
-  dplyr::select(ln_y, exper, exper_sq, schooling_years, prague, has_child, urate) %>% 
+  dplyr::select(ln_y, c14,  exper, exper_sq, schooling_years, prague, any_children, urate) %>% 
+  rename(earnings = c14) %>% 
   # Keep numeric variables
   select_if(is.numeric) %>%
   # gather variables
@@ -76,9 +78,14 @@ basic_model <- lm_robust(ln_y ~ schooling_years + exper + exper_sq, full_time_me
 # a)
 # We might want to control for main activity of the bussiness since it might affect the earnings
 
-extended_model <- lm_robust(ln_y ~ schooling_years + exper + exper_sq + c06, full_time_men)
+remove_factor <- function(lm_model, factor_name = 'edu_level'){
+  lm_model$term <- lm_model$term %>%  str_remove(str_c('^', factor_name))
+  return(lm_model)
+  
+}
 
-extended_model$term <- str_replace(extended_model$term,"^c06", "")
+extended_model <- lm_robust(ln_y ~ schooling_years + exper + exper_sq + c06, full_time_men) %>% remove_factor('c06')
+
 
 texreg(list(basic_model, extended_model), caption = 'Basic and extended models', file = 'tables/extended_model.tex',
        caption.above = TRUE, include.ci = FALSE) 
@@ -100,21 +107,50 @@ max_earn_exp <- -extended_model$coefficients['exper']/(2 * extended_model$coeffi
 
 # 6)
 
-edu_level_basic <- lm_robust(ln_y ~ edu_level + exper + exper_sq, full_time_men)
+
+edu_level_basic <- lm_robust(ln_y ~ edu_level + exper + exper_sq, full_time_men) %>% remove_factor()
+
 
 # 7)
 # a)
-one_child <- lm_robust(ln_y ~ has_child + edu_level + exper + exper_sq, full_time_men)
+one_child <- lm_robust(ln_y ~ any_children + edu_level + exper + exper_sq, full_time_men) %>% remove_factor()
+
 
 # b)
-one_vs_more <- lm_robust(ln_y ~ I(more_than_one_child - has_child)+ edu_level + exper + exper_sq, full_time_men)
+one_vs_more <- lm_robust(ln_y ~ more_than_one_child + one_child + edu_level + exper + exper_sq, full_time_men) %>% 
+  remove_factor()
 texreg(list(edu_level_basic, one_child, one_vs_more), caption = 'Effects of children', file = 'tables/children_effects.tex',
        caption.above = TRUE, include.ci = FALSE) 
-  
+
+# H_0: coeff on   more_than_one_child  == has_child
+
+R <- matrix(c(0,1,-1, rep(0, 7)), ncol = 10)
+coef_mat <- one_vs_more$coefficients['more_than_one_child'] - one_vs_more$coefficients['one_child']
+
+wald_stat <- t(coef_mat) %*% solve(R %*% one_vs_more$vcov %*% t(R)) %*% coef_mat
+p_val <- 1 - pchisq(wald_stat, 1)
+
 
 # 8)
-# a, b)
-prague_reg <- lm_robust(ln_y ~ schooling_years*prague + exper + exper_sq, full_time_men)
+# a)
+replace_inter_sym <- function(lm_model, repl_with = '*'){
+  lm_model$term <- lm_model$term %>%  str_replace(':', ' * ')
+  return(lm_model)
+}
+
+prague_reg <- lm_robust(ln_y ~ schooling_years*prague + exper*prague + exper_sq*prague, full_time_men) %>% 
+  replace_inter_sym()
+
+#b)
+
+R <- diag(c(rep(0, 2), 1, rep(0, 2), rep(1, 3)))[c(3,6:8), ]
+
+coef_mat <-  matrix(prague_reg$coefficients)[c(3 ,6:8)]
+
+wald_stat <- t(coef_mat) %*% solve(R %*% prague_reg$vcov %*% t(R)) %*% coef_mat
+p_val <- 1 - pchisq(wald_stat, 4)
+
+
 #c)
 unemp_rate_reg <- lm_robust(ln_y ~ urate + schooling_years + exper + exper_sq, full_time_men)
 texreg(list(prague_reg, unemp_rate_reg), caption = 'Prague and regional unemployment effect',
@@ -124,10 +160,9 @@ texreg(list(prague_reg, unemp_rate_reg), caption = 'Prague and regional unemploy
 
 # 9)
 
-gender_inter <- lm_robust(ln_y ~ schooling_years*female + exper*female + exper_sq*female, main_data)
+gender_inter <- lm_robust(ln_y ~ schooling_years*female + exper*female + exper_sq*female, main_data) %>% 
+  replace_inter_sym()
 
-
-gender_inter$term <- str_replace(gender_inter$term,":", "*")
 
 o_decomp <- oaxaca(ln_y ~ schooling_years + exper + exper_sq| female , data = main_data, R = 1000)
 
