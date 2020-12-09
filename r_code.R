@@ -12,7 +12,7 @@ library(REAT)
 library(xtable)
 
 
-main_data<- read_dta("data/RQdata.dta", ) %>% as_factor()
+main_data<- read_dta("data/RQdata.dta" ) %>% as_factor()
 ur95 <- read_excel("data/ur95.xls")
 
 main_data <- main_data %>% 
@@ -101,6 +101,12 @@ p.value
 # We reject null hypothesis of homoskeasticity
 
 
+# g)
+
+full_time_men %>% 
+  dplyr::select(ln_y, schooling_years, exper, exper_sq) %>% 
+  write_csv('data/full_time_men.csv')
+
 # f)
 max_earn_exp <- -extended_model$coefficients['exper']/(2 * extended_model$coefficients['exper_sq'])
 
@@ -163,6 +169,13 @@ texreg(list(prague_reg, unemp_rate_reg), caption = 'Prague and regional unemploy
 gender_inter <- lm_robust(ln_y ~ schooling_years*female + exper*female + exper_sq*female, main_data) %>% 
   replace_inter_sym()
 
+
+main_data %>% 
+  write_csv('data/main_data.csv')
+
+main_data %>% 
+  group_by(female) %>% 
+  summarise(mean = mean(ln_y), sch = mean(schooling_years))
 
 o_decomp <- oaxaca(ln_y ~ schooling_years + exper + exper_sq| female , data = main_data, R = 1000)
 
