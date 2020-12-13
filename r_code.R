@@ -15,6 +15,8 @@ library(xtable)
 main_data<- read_dta("data/RQdata.dta" ) %>% as_factor()
 ur95 <- read_excel("data/ur95.xls")
 
+
+
 main_data <- main_data %>% 
   left_join(ur95, by = "code") %>% 
   mutate(ln_y = log(c14),
@@ -34,15 +36,25 @@ main_data <- main_data %>%
          female = (e02a == "Female")*1)  %>% 
   rename(schooling_years = a09)
 
+#main_data %>% 
+#  filter(exper <0) %>% 
+#  View()
+
 # Check number of missing values for each column
 main_data %>% 
   map_int(~ sum(is.na(.)))
 
 # Variable c14 has 101 missing values, c13 22, and c06 18
 
+# before dropping missing data, we have 3837 obs.
+
+
 # drop the missing data 
 main_data <- main_data %>% 
-  filter(!is.na(c14), !is.na(c13), !is.na(c06), !is.na(ln_y)) #%>%   map_int(~ sum(is.na(.)))
+  filter(!is.na(c14), !is.na(c13), !is.na(c06), !is.na(ln_y), exper > -1) #%>%   map_int(~ sum(is.na(.)))
+
+main_data %>% 
+  write_csv('data/main_data.csv')
 
 # 3)
 
@@ -71,6 +83,13 @@ main_data_summary %>%
 # 4)
 # a) 
 men_only <- main_data %>% filter(e02a == "Male")
+
+men_only <- men_only %>% 
+  mutate(full_time = ifelse((c13 >= 6) & (c13 <= 10), 1, 0))
+
+summary(lm_robust(schooling_years ~ full_time, data = men_only))
+summary(lm_robust(ln_y ~ full_time, data = men_only))
+
 full_time_men <- men_only %>% filter(c13 >= 6, c13 <= 10)
 basic_model <- lm_robust(ln_y ~ schooling_years + exper + exper_sq, full_time_men)
 
@@ -111,10 +130,17 @@ full_time_men %>%
 max_earn_exp <- -extended_model$coefficients['exper']/(2 * extended_model$coefficients['exper_sq'])
 
 
+
 # 6)
 
 
 edu_level_basic <- lm_robust(ln_y ~ edu_level + exper + exper_sq, full_time_men) %>% remove_factor()
+edu_level_basic
+((exp(edu_level_basic$coefficients[2]) - 1) /2) * 100
+((exp(edu_level_basic$coefficients[3]) - 1) /3.5) * 100
+((exp(edu_level_basic$coefficients[4]) - 1) /4) * 100
+((exp(edu_level_basic$coefficients[5]) - 1) /4) * 100
+((exp(edu_level_basic$coefficients[6]) - 1) /5) * 100
 
 
 # 7)
@@ -169,9 +195,6 @@ texreg(list(prague_reg, unemp_rate_reg), caption = 'Prague and regional unemploy
 gender_inter <- lm_robust(ln_y ~ schooling_years*female + exper*female + exper_sq*female, main_data) %>% 
   replace_inter_sym()
 
-
-main_data %>% 
-  write_csv('data/main_data.csv')
 
 main_data %>% 
   group_by(female) %>% 

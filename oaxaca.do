@@ -1,15 +1,19 @@
-cd "C:/Users/marti/OneDrive/Plocha/skola/cerge/labor_econ/labor-econ-empirical-assignment/data"
+clear all
+cd "C:/Users/marti/OneDrive/Plocha/skola/cerge/labor_econ/labor-econ-empirical-assignment"
 
 
-import delimited "main_data.csv"
+import delimited "data/main_data.csv"
 
 oaxaca ln_y schooling_years exper exper_sq, by(female) pooled noisily
 
 estimates store test
-esttab test using oaxaca.tex, se
+esttab test using tables/oaxaca.tex, se
 
-estout test using example.txt, cells(b)
-estout test, cells(b0)
+
+
+
+*"estout test using example.txt, cells(b)
+*estout test, cells(b0)
 
 
 
