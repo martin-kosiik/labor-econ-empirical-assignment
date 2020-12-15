@@ -1,0 +1,52 @@
+{
+\def\sym#1{\ifmmode^{#1}\else\(^{#1}\)\fi}
+\begin{tabular}{l*{1}{c}}
+\hline\hline
+            &\multicolumn{1}{c}{(1)}\\
+            &\multicolumn{1}{c}{ln\_y}\\
+\hline
+overall     &                     \\
+group\_1     &       8.942\sym{***}\\
+            &    (0.0113)         \\
+[1em]
+group\_2     &       8.626\sym{***}\\
+            &   (0.00984)         \\
+[1em]
+difference  &       0.316\sym{***}\\
+            &    (0.0150)         \\
+[1em]
+explained   &    0.000518         \\
+            &   (0.00663)         \\
+[1em]
+unexplained &       0.315\sym{***}\\
+            &    (0.0136)         \\
+\hline
+explained   &                     \\
+schooling\_years&      0.0194\sym{***}\\
+            &   (0.00441)         \\
+[1em]
+exper       &     0.00431         \\
+            &    (0.0106)         \\
+[1em]
+exper\_sq    &     -0.0232\sym{*}  \\
+            &    (0.0113)         \\
+\hline
+unexplained &                     \\
+schooling\_years&      -0.333\sym{***}\\
+            &    (0.0878)         \\
+[1em]
+exper       &       0.537\sym{***}\\
+            &     (0.128)         \\
+[1em]
+exper\_sq    &      -0.392\sym{***}\\
+            &    (0.0839)         \\
+[1em]
+\_cons      &       0.504\sym{***}\\
+            &    (0.0943)         \\
+\hline
+\(N\)       &        3689         \\
+\hline\hline
+\multicolumn{2}{l}{\footnotesize Standard errors in parentheses}\\
+\multicolumn{2}{l}{\footnotesize \sym{*} \(p<0.05\), \sym{**} \(p<0.01\), \sym{***} \(p<0.001\)}\\
+\end{tabular}
+}
