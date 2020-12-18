@@ -7,15 +7,4 @@ import delimited "data/main_data.csv"
 oaxaca ln_y schooling_years exper exper_sq, by(female) pooled noisily
 
 estimates store test
-esttab test using tables/oaxaca.tex, se
-
-
-
-
-*"estout test using example.txt, cells(b)
-*estout test, cells(b0)
-
-
-
-
-oaxaca ln_y schooling_years exper exper_sq, by(female) pooled noisily eform
+esttab test using tables/oaxaca.tex, se replace
